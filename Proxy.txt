@@ -1,0 +1,85 @@
+Reverse Proxy 
+`````````````
+
+Ques:
+
+
+Client                 Linux( Rocky)                    Win Ser 1 (192.168.70.1)
+  |    	_______	          |  |		 ___________ ______|
+  |_____| NAT |___________|  |__________| Host-Only |______
+        ```````                         `````````````	   |
+							Win Ser 2 (192.168.70.5)
+
+
+Ans:
+
+1. Change both win ser to HO and give static IP (above IP)
+2. Make 2 intf in Linux 1- NAT 2-HO
+3. Give HO intf (Linux) Manual IP - 192.168.70.100
+4. Create index.html in C:/inetpub/wwwroot
+5. Curl both servers IP in linux
+6. Install nginx update & upgrade 
+7. Open /etc/nginx/nginx.conf
+
+
+http{
+	server{
+		listen	80;
+		:
+		:
+		:
+		:
+        	location /exam {
+                	proxy_pass http://192.168.70.1/;
+			proxy_buffering off;
+			proxy_set_header X-Real-IP $remote_addr;
+			proxy_set_header X-Forwarded-Host $host;
+			proxy_set_header X-Forwarded-Port $server_port;
+        	}
+        	location /test {
+                	proxy_pass http://192.168.70.5/;
+        	}
+
+	}
+}
+
+#setenforce 0
+stop firewall or enable forwarding : iptables -F
+
+now on base pc:(with nat ip) 
+	192.168.25.173/test
+	192.168.25.173/exam
+
+
+
+**************************************************************************
+
+Load Balancer (Nginx)
+`````````````````````
+
+
+ Open /etc/nginx/nginx.conf
+
+
+#
+#
+include /etc/nginx/..... (dont change this line)
+(Enter)upstream backend {
+	server 192.168.70.1; (round-robin basis)    //server 192.168.70.1 weight=5; (Acc.to weight sever load capacity) 
+	server 192.168.70.5;			    //server 192.168.70.5 weitht=10;
+}
+
+server{
+		listen	80;
+		:
+		:
+		:
+		:
+        	location /exam {
+                	proxy_pass http://backend/;
+			proxy_buffering off;
+			proxy_set_header X-Real-IP $remote_addr;
+			proxy_set_header X-Forwarded-Host $host;
+			proxy_set_header X-Forwarded-Port $server_port;
+        	}
+}

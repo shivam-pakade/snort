@@ -1,0 +1,149 @@
+SNORT
+``````````
+
+Install Snort
+
+singup/login snort.org
+
+
+get oinkcode from snort website
+
+services -> snort -> global settings ->
+
+check: Enable Snort VRT, copy code to Snort Oinkmaster Code : 
+check: Enable Snort GPLv2, Enable ET Open
+go last and check Keep Snort Settings After Deinstall and save
+
+
+go to Updates and update rules
+
+
+go to Snort Interfaces -> Click Add
+
+Check : EnableEnable interface
+Interface
+WAN (em0)
+
+save
+
+
+Go to Wan Rules -> Category Selection: -> custom rules
+
+Add in Blank space:     alert tcp $HOME_NET any -> any 80 (msg:"http traffic detected";sid:1000001;) 
+
+and save
+
+now go to snort Interface and start the wan service
+
+--------------------------
+
+Now open win10 client : HOSTONLY : give static IP in range of pfsense LAN ip and gateway: pfSense LAN ip , DNS : 192.168.72.20.
+
+open first http site : info.cern.ch
+
+Click first link.
+
+
+1.edit wan rule
+alert tcp $HOME_NET any -> any 80 (msg:"history word detected";content:"history";nocase;sid:1000001;) 
+
+go to client and click history link in first link
+
+go to pfSense site check alerts in snort interfaces -> Alerts
+
+Like this: 
+Example
+`````````````
+2023-11-25 	0	TCP		192.168.25.177         42948	188.184.100.182  	80	1:1000001  	history word detected 
+09:33:13
+
+2. Now for ping icmp from outside:
+
+Rule:
+
+alert icmp any any -> any any (msg:"large ping buffer";dsize:>64;sid:1000002;)
+And restart the wan in snort interface
+
+go to kali and type: ping -s 300 192.168.25.177 (pfSense wan ip)
+
+Now check Alert:
+
+2023-11-25	0	ICMP		192.168.25.153	192.168.25.177	1:1000002		large ping buffer
+09:50:06	
+
+3. Now to check small ttl value
+
+alert icmp any any -> any any (msg:"mininmum ttl value";ttl:<5;sid:1000003;)
+And restart the wan in snort interface
+
+go to kali and type:  ping -t 3 192.168.25.177
+
+Now check rules:
+
+2023-11-25
+09:55:50		0	ICMP		192.168.25.153	192.168.25.177	1:1000003		mininmum ttl value
+
+4. dicovering Kali linux once it get booted and connected to network
+
+rule: ADD
+	alert udp any any -> any 67 (msg:"kali linux detected";content:"kali";nocase;sid:1000004;) 
+save
+
+And restart the wan in snort interface
+
+go to kali:  restart the system /dhclient
+
+check alerts:
+ 
+2023-11-25
+10:42:56		0	UDP		0.0.0.0	68	255.255.255.255	67	1:1000004		kali linux detected
+
+
+5.flow ( not check syn,syn+ack, etc packets.  reduce load to server )
+   ````````
+update the first rule to
+
+alert tcp $HOME_NET any -> any 80 (msg:"history word detected";flow:from_client,established;content:"history";nocase;sid:1000001;) 
+
+go to client and again go to:  info.cern.ch and again click history
+
+now check pfSense rule
+
+2023-11-25
+11:05:14		0	TCP		192.168.25.177	33577	188.184.100.182	80	1:1000001		history word detected
+
+Note: if not work change flow to [....;flow:to_server,established;....]
+
+----------------------------
+for unidirection: -> , <-
+for bidirectional: < >
+----------------------------
+
+
+count
+`````````
+
+[nahi kiya]
+
+
+---------------------------
+
+6. ftp connection:
+	kali-->windows
+
+in pfSense: 
+firewall -> NAT ->  Add -> 
+Interface : WAN
+Protocol: TCP
+Source: WAN Address
+Source port range: Any	Any
+Redirect target IP:			192.168.10.10 (win client HO IP)
+
+Rule:
+
+alert tcp any any -> $HOME_NET 21 (msg:"FTP connection attempt"; sid:1000005;)
+[for particular user like root: alert tcp any any -> $HOME_NET 21 (msg:"FTP connect attempt";flow:from_client,established;content:"root";sid:1000005;) ]
+
+go to kali and type: ftp 192.168.10.10
+
+Check Alert: done
